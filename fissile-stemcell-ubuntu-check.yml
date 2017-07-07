@@ -1,0 +1,103 @@
+---
+resource_types:
+  - name: pull-request
+    type: docker-image
+    source:
+      repository: splatform/concourse-github-pull-request
+  - name: status
+    type: docker-image
+    source:
+      repository: aduffeck/concourse-github-status
+      tag: 0.0.13
+
+jobs:
+  - name: build
+    plan:
+      - get: src
+        trigger: true
+      - get: ci
+      - get: docker.ubuntu-os-image
+      - get: semver.os-image-ubuntu
+      - put: status
+        params:
+          context: build
+          description: build ubuntu fissile stemcell
+          path: src
+          state: pending
+      - task: setup-ubuntu-stemcell-versions
+        file: ci/tasks/setup-ubuntu-stemcell-versions.yml
+        params:
+          - DOCKER_REPOSITORY: ci-os-image-ubuntu
+      - put: docker.fissile-stemcell-ubuntu
+        inputs:
+          - name: versioned-fissile-stemcell
+        params:
+          build: versioned-fissile-stemcell-ubuntu
+          tag: versioned-fissile-stemcell-ubuntu/VERSION
+        get_params:
+          skip_download: true
+    on_failure:
+      put: status
+      params:
+        context: build
+        description: build ubuntu fissile stemcell
+        path: src
+        state: failure
+    on_success:
+      put: status
+      params:
+        context: build
+        description: build ubuntu fissile stemcell
+        path: src
+        state: success
+
+resources:
+  - name: ci
+    type: git
+    source:
+      uri: git@github.com:SUSE/fissile-stemcell-openSUSE-ci.git
+      branch: master
+      private_key: {{github-private-key}}
+
+  - name: semver.os-image-ubuntu
+    type: semver
+    source:
+      driver: s3
+      key: os-image-ubuntu-leap-version
+      bucket: concourse-ci-bosh-stemcell
+      access_key_id: {{aws-access-key}}
+      secret_access_key: {{aws-secret-key}}
+      region_name: eu-central-1
+
+  - name: docker.ubuntu-os-image
+    type: docker-image
+    source:
+      repository: splatform/ci-os-image-ubuntu
+      tag: "latest"
+      username: {{docker-username}}
+      password: {{docker-password}}
+
+  - name: docker.fissile-stemcell-ubuntu
+    type: docker-image
+    source:
+      repository: splatform/ci-fissile-stemcell-ubuntu
+      tag: "trusty"
+      username: {{docker-username}}
+      password: {{docker-password}}
+
+  #
+  # check pr resources
+  #
+  - name: src
+    type: pull-request
+    source:
+      access_token: {{github-access-token}}
+      branch: "trusty"
+      private_key: {{github-private-key}}
+      uri: https://github.com/cloudfoundry-community/fissile-stemcell-ubuntu.git
+
+  - name: status
+    type: status
+    source:
+      access_token: {{github-access-token}}
+      repo: cloudfoundry-community/fissile-stemcell-ubuntu
