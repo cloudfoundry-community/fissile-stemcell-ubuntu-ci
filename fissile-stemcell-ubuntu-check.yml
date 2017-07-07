@@ -55,7 +55,7 @@ resources:
   - name: ci
     type: git
     source:
-      uri: git@github.com:SUSE/fissile-stemcell-openSUSE-ci.git
+      uri: git@github.com:cloudfoundry-community/fissile-stemcell-ubuntu-ci.git
       branch: master
       private_key: {{github-private-key}}
 
@@ -63,7 +63,7 @@ resources:
     type: semver
     source:
       driver: s3
-      key: os-image-ubuntu-leap-version
+      key: os-image-ubuntu-trusty-version
       bucket: concourse-ci-bosh-stemcell
       access_key_id: {{aws-access-key}}
       secret_access_key: {{aws-secret-key}}
